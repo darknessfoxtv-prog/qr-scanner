@@ -34,6 +34,20 @@
       font-weight: bold;
       margin-top: 10px;
     }
+    .validation-status {
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 8px;
+      font-weight: bold;
+    }
+    .status-success {
+      background-color: #e6f7e8;
+      color: #28a745;
+    }
+    .status-error {
+      background-color: #f8e6e6;
+      color: #dc3545;
+    }
   </style>
 </head>
 <body>
@@ -44,12 +58,13 @@
     <video id="video" playsinline></video>
   </div>
   
-  <div id="result"></div>
+  <div id="validation-result-container">
+    </div>
   <div id="error-message"></div>
   
   <script>
     const video = document.getElementById('video');
-    const resultDiv = document.getElementById('result');
+    const validationResultContainer = document.getElementById('validation-result-container');
     const errorMessageDiv = document.getElementById('error-message');
     const scannerMessageDiv = document.getElementById('scanner-message');
     const videoConstraints = { video: { facingMode: 'environment', width: 1280, height: 720 } };
@@ -82,15 +97,21 @@
         
         if (code) {
           const qrCodeData = code.data;
-          resultDiv.textContent = `스캔된 데이터: ${qrCodeData}`;
+          validationResultContainer.innerHTML = ''; // 이전 결과 지우기
           
+          // Apps Script로 데이터 전송 및 응답 처리
           const appsScriptUrl = 'https://script.google.com/macros/s/AKfycby0PWvWVFOilFMNaX8e0zOKcmpjv0fFqdZakSTTUfdgq9HqAO-KgfQLxxCfMVycM8HLPQ/exec';
           const url = `${appsScriptUrl}?qrCodeData=${encodeURIComponent(qrCodeData)}`;
           
           fetch(url)
-              .then(response => response.text())
-              .then(data => console.log(data))
-              .catch(error => console.error('Apps Script 전송 실패:', error));
+              .then(response => response.json()) // 응답을 JSON으로 파싱
+              .then(data => {
+                  displayValidationResult(data);
+              })
+              .catch(error => {
+                  console.error('Apps Script 통신 실패:', error);
+                  errorMessageDiv.textContent = '통신 오류: Apps Script에 연결할 수 없습니다.';
+              });
               
           if (video.srcObject) {
             video.srcObject.getTracks().forEach(track => track.stop());
@@ -99,6 +120,19 @@
         }
       }
       requestAnimationFrame(tick);
+    }
+    
+    // 검증 결과를 화면에 표시하는 함수
+    function displayValidationResult(data) {
+      const resultDiv = document.createElement('div');
+      if (data.status === 'success') {
+        resultDiv.className = 'validation-status status-success';
+        resultDiv.innerHTML = `✅ 검증 성공<br>제품UDI: ${data.productUdi}<br>제품명: ${data.productName}<br>출고수량: ${data.totalQuantity}<br>스캔수량: ${data.scannedQuantity}`;
+      } else {
+        resultDiv.className = 'validation-status status-error';
+        resultDiv.textContent = `❌ 검증 실패: ${data.message}`;
+      }
+      validationResultContainer.appendChild(resultDiv);
     }
     
     startScanner();
