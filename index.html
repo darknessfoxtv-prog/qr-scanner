@@ -3,13 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QR Code Scanner</title>
+  <title>QR 코드 스캔</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 20px; background-color: #f4f4f4; }
     #reader { width: 100%; max-width: 500px; margin: auto; }
     h2 { color: #333; }
+    p { color: #666; }
     #result { margin-top: 20px; font-weight: bold; color: #007BFF; }
+    .scanner-controls { margin-top: 20px; }
+    .scanner-controls button { 
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      background-color: #007BFF;
+      color: white;
+    }
   </style>
 </head>
 <body>
@@ -17,6 +28,10 @@
   <p>카메라를 허용하면 자동으로 스캔이 시작됩니다.</p>
   <div id="reader"></div>
   <div id="result"></div>
+  
+  <div class="scanner-controls">
+    <button id="start-scan-button">스캔 시작</button>
+  </div>
   
   <script>
     function onScanSuccess(decodedText, decodedResult) {
@@ -34,11 +49,20 @@
               console.error('Error sending data to Apps Script:', error);
           });
       
-      html5QrcodeScanner.clear();
+      html5QrcodeScanner.stop().then(ignore => {
+          console.log("QR 스캐너 중지됨.");
+      }).catch(err => {
+          console.log("QR 스캐너 중지 실패: " + err);
+      });
     }
     
+    // 이 부분에서 카메라를 자동으로 시작하지 않습니다.
     const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } });
-    html5QrcodeScanner.render(onScanSuccess);
+    
+    // '스캔 시작' 버튼을 눌렀을 때만 카메라를 실행합니다.
+    document.getElementById('start-scan-button').addEventListener('click', () => {
+      html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, onScanSuccess);
+    });
   </script>
 </body>
 </html>
