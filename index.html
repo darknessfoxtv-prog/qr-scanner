@@ -22,21 +22,21 @@
     function onScanSuccess(decodedText, decodedResult) {
       document.getElementById('result').textContent = `스캔된 데이터: ${decodedText}`;
       
-      // 1단계: Apps Script 웹 앱 URL을 여기에 붙여넣으세요.
-      const appsScriptUrl = 'https://script.google.com/macros/s/AKfycby0PWvWVFOilFMNaX8e0zOKcmpjv0fFqdZakSTTUfdgq9HqAO-KgfQLxxCfMVycM8HLPQ/exec';
+      // 스캔이 완료되면 Apps Script로 데이터를 보냄
+      const appsScriptUrl = 'https://script.google.com/macros/s/AKfycby0PWvWVFOilFMNaX8e0zOKcmpjv0fFqdZakSTTUfdgq9HqAO-KgfQLxxCfMVycM8HLPQ/exec'; 
+      const url = `${appsScriptUrl}?qrCodeData=${encodeURIComponent(decodedText)}`;
       
-      // 2단계: 스캔된 데이터를 Apps Script로 보냅니다.
-      fetch(`${appsScriptUrl}?qrCodeData=${encodeURIComponent(decodedText)}`)
+      fetch(url)
           .then(response => response.text())
           .then(data => {
-              console.log('Apps Script 응답:', data);
+              console.log(data); // Apps Script에서 받은 응답
           })
           .catch(error => {
-              console.error('Apps Script로 데이터 전송 실패:', error);
+              console.error('Error sending data to Apps Script:', error);
           });
-
-      // 스캐너 정지 (선택 사항)
-      // html5QrcodeScanner.clear();
+      
+      // 스캐너 정지 (필요 시)
+      html5QrcodeScanner.clear();
     }
     
     const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } });
