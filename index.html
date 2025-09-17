@@ -45,7 +45,7 @@
       font-weight: bold;
       margin-top: 10px;
     }
-    #output-canvas { display: none; } /* 화면에 보이지 않도록 숨깁니다. */
+    #output-canvas { display: none; }
   </style>
 </head>
 <body>
@@ -96,24 +96,24 @@
     function tick() {
       if (!isScanning) return;
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        outputCanvas.width = video.videoWidth;
-        outputCanvas.height = video.videoHeight;
+        const videoWidth = video.videoWidth;
+        const videoHeight = video.videoHeight;
         
-        // 카메라 프레임을 캔버스에 그립니다.
-        canvasContext.drawImage(video, 0, 0, outputCanvas.width, outputCanvas.height);
+        // 캔버스의 크기를 비디오 프레임과 동일하게 설정
+        outputCanvas.width = videoWidth;
+        outputCanvas.height = videoHeight;
         
-        // 캔버스에서 이미지 데이터를 가져와 흑백으로 변환합니다.
-        let imageData = canvasContext.getImageData(0, 0, outputCanvas.width, outputCanvas.height);
-        const grayImageData = new Uint8ClampedArray(imageData.width * imageData.height);
-        for (let i = 0; i < imageData.data.length; i += 4) {
-          const r = imageData.data[i];
-          const g = imageData.data[i + 1];
-          const b = imageData.data[i + 2];
-          // 흑백 변환 공식: (R + G + B) / 3
-          grayImageData[i / 4] = (r + g + b) / 3;
-        }
+        // 비디오 프레임을 캔버스에 그립니다.
+        canvasContext.drawImage(video, 0, 0, videoWidth, videoHeight);
+        
+        // 중앙 250x250 픽셀 영역을 잘라냅니다.
+        const cropSize = 250;
+        const cropX = (videoWidth - cropSize) / 2;
+        const cropY = (videoHeight - cropSize) / 2;
+        
+        const imageData = canvasContext.getImageData(cropX, cropY, cropSize, cropSize);
 
-        const code = jsQR(grayImageData, imageData.width, imageData.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
         
         if (code) {
           isScanning = false;
