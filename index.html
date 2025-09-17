@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QR 코드 스캔</title>
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.0.0/dist/jsQR.min.js"></script>
+  <script type="text/javascript" src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 20px; background-color: #f4f4f4; }
     h2 { color: #333; }
@@ -13,13 +13,13 @@
       max-width: 500px; 
       margin: 0 auto; 
       position: relative;
-      overflow: hidden; /* 확대된 비디오가 컨테이너를 벗어나지 않도록 합니다. */
+      overflow: hidden;
     }
     #video-container video {
       width: 100%;
       height: auto;
       display: block;
-      transform: scale(2); /* 비디오 화면을 2배 확대합니다. */
+      transform: scale(2);
     }
     #validation-result-container {
       margin-top: 20px;
@@ -48,7 +48,6 @@
       margin-top: 10px;
     }
     #output-canvas { display: none; }
-    /* QR 코드 인식 영역에 테두리를 표시하는 오버레이 */
     #crop-overlay {
         position: absolute;
         top: 50%;
@@ -56,9 +55,9 @@
         transform: translate(-50%, -50%);
         width: 250px;
         height: 250px;
-        border: 2px solid red; /* 빨간색 테두리 */
+        border: 2px solid red;
         box-sizing: border-box;
-        pointer-events: none; /* 클릭 이벤트를 통과시킵니다. */
+        pointer-events: none;
     }
   </style>
 </head>
@@ -77,59 +76,20 @@
   <canvas id="output-canvas"></canvas>
   
   <script>
-    const video = document.getElementById('video');
-    const validationResultContainer = document.getElementById('validation-result-container');
-    const errorMessageDiv = document.getElementById('error-message');
-    const scannerMessageDiv = document.getElementById('scanner-message');
-    const outputCanvas = document.getElementById('output-canvas');
-    const canvasContext = outputCanvas.getContext('2d');
-    
-    const videoConstraints = { video: { facingMode: 'environment', width: 1280, height: 720 } };
-    let isScanning = false;
+    window.addEventListener('load', function() {
+      const video = document.getElementById('video');
+      const validationResultContainer = document.getElementById('validation-result-container');
+      const errorMessageDiv = document.getElementById('error-message');
+      const scannerMessageDiv = document.getElementById('scanner-message');
+      
+      const { BrowserDatamatrixCodeReader } = ZXing;
+      const codeReader = new BrowserDatamatrixCodeReader();
 
-    function startScanner() {
-      if (isScanning) return;
-      isScanning = true;
-      validationResultContainer.innerHTML = '';
-      errorMessageDiv.textContent = '';
-      scannerMessageDiv.textContent = '카메라가 활성화되었습니다. QR 코드를 화면에 비춰주세요.';
-
-      navigator.mediaDevices.getUserMedia(videoConstraints)
-        .then(function(stream) {
-          video.srcObject = stream;
-          video.play();
-          requestAnimationFrame(tick);
-        })
-        .catch(function(err) {
-          isScanning = false;
-          console.error("카메라 접근 실패: ", err);
-          errorMessageDiv.textContent = `오류: ${err.message}. 카메라 권한을 확인해주세요.`;
-          scannerMessageDiv.textContent = '';
-        });
-    }
-
-    function tick() {
-      if (!isScanning) return;
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        const videoWidth = video.videoWidth;
-        const videoHeight = video.videoHeight;
-        
-        outputCanvas.width = videoWidth;
-        outputCanvas.height = videoHeight;
-        
-        canvasContext.drawImage(video, 0, 0, videoWidth, videoHeight);
-        
-        const cropSize = 250;
-        const cropX = (videoWidth - cropSize) / 2;
-        const cropY = (videoHeight - cropSize) / 2;
-        
-        const imageData = canvasContext.getImageData(cropX, cropY, cropSize, cropSize);
-
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
-        
-        if (code) {
-          isScanning = false;
-          const qrCodeData = code.data;
+      codeReader.decodeFromVideoDevice(null, video, (result, err) => {
+        if (result) {
+          const qrCodeData = result.text;
+          
+          codeReader.reset();
           
           const appsScriptUrl = 'https://script.google.com/macros/s/AKfycby0PWvWVFOilFMNaX8e0zOKcmpjv0fFqdZakSTTUfdgq9HqAO-KgfQLxxCfMVycM8HLPQ/exec';
           const url = `${appsScriptUrl}?qrCodeData=${encodeURIComponent(qrCodeData)}`;
@@ -143,29 +103,24 @@
                   console.error('Apps Script 통신 실패:', error);
                   errorMessageDiv.textContent = '통신 오류: Apps Script에 연결할 수 없습니다.';
               });
-              
-          if (video.srcObject) {
-            video.srcObject.getTracks().forEach(track => track.stop());
-          }
-          return;
         }
+        if (err && !(err instanceof ZXing.NotFoundException)) {
+          console.error(err);
+        }
+      });
+
+      function displayValidationResult(data) {
+        const resultDiv = document.createElement('div');
+        if (data.status === 'success') {
+          resultDiv.className = 'validation-status status-success';
+          resultDiv.innerHTML = `✅ 검증 성공<br>제품UDI: ${data.productUdi}<br>제품명: ${data.productName}<br>출고수량: ${data.totalQuantity}<br>스캔수량: ${data.scannedQuantity}`;
+        } else {
+          resultDiv.className = 'validation-status status-error';
+          resultDiv.textContent = `❌ 검증 실패: ${data.message}`;
+        }
+        validationResultContainer.appendChild(resultDiv);
       }
-      requestAnimationFrame(tick);
-    }
-    
-    function displayValidationResult(data) {
-      const resultDiv = document.createElement('div');
-      if (data.status === 'success') {
-        resultDiv.className = 'validation-status status-success';
-        resultDiv.innerHTML = `✅ 검증 성공<br>제품UDI: ${data.productUdi}<br>제품명: ${data.productName}<br>출고수량: ${data.totalQuantity}<br>스캔수량: ${data.scannedQuantity}`;
-      } else {
-        resultDiv.className = 'validation-status status-error';
-        resultDiv.textContent = `❌ 검증 실패: ${data.message}`;
-      }
-      validationResultContainer.appendChild(resultDiv);
-    }
-    
-    startScanner();
+    });
   </script>
 </body>
 </html>
