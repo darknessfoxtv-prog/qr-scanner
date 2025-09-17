@@ -4,22 +4,30 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QR 코드 스캔</title>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.0.0/dist/jsQR.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 20px; background-color: #f4f4f4; }
-    #reader { width: 100%; max-width: 500px; margin: auto; }
     h2 { color: #333; }
-    p { color: #666; }
-    #result { margin-top: 20px; font-weight: bold; color: #007BFF; }
-    .scanner-controls { margin-top: 20px; }
-    .scanner-controls button { 
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      border: none;
-      border-radius: 5px;
-      background-color: #007BFF;
-      color: white;
+    #video-container { 
+      width: 100%; 
+      max-width: 500px; 
+      margin: 0 auto; 
+      position: relative;
+    }
+    #video-container video {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    #result { 
+      margin-top: 20px; 
+      font-weight: bold; 
+      color: #007BFF;
+      font-size: 1.2em;
+    }
+    #scanner-message {
+      color: #666;
+      margin-bottom: 10px;
     }
     #error-message {
       color: red;
@@ -30,52 +38,74 @@
 </head>
 <body>
   <h2>QR 코드 스캔</h2>
-  <p>카메라를 허용하면 자동으로 스캔이 시작됩니다.</p>
-  <div id="reader"></div>
-  <div id="result"></div>
+  <div id="scanner-message">카메라를 허용해주세요.</div>
   
-  <div class="scanner-controls">
-    <button id="start-scan-button">스캔 시작</button>
+  <div id="video-container">
+    <video id="video" playsinline></video>
   </div>
+  
+  <div id="result"></div>
   <div id="error-message"></div>
   
   <script>
-    const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } });
-
-    function onScanSuccess(decodedText, decodedResult) {
-      document.getElementById('result').textContent = `스캔된 데이터: ${decodedText}`;
-      
-      const appsScriptUrl = 'https://script.google.com/macros/s/AKfycby0PWvWVFOilFMNaX8e0zOKcmpjv0fFqdZakSTTUfdgq9HqAO-KgfQLxxCfMVycM8HLPQ/exec'; 
-      const url = `${appsScriptUrl}?qrCodeData=${encodeURIComponent(decodedText)}`;
-      
-      fetch(url)
-          .then(response => response.text())
-          .then(data => {
-              console.log(data);
-          })
-          .catch(error => {
-              console.error('Apps Script로 데이터 전송 실패:', error);
-          });
-      
-      html5QrcodeScanner.stop().then(ignore => {
-          console.log("QR 스캐너 중지됨.");
-      }).catch(err => {
-          console.log("QR 스캐너 중지 실패: " + err);
-      });
+    const video = document.getElementById('video');
+    const resultDiv = document.getElementById('result');
+    const errorMessageDiv = document.getElementById('error-message');
+    const scannerMessageDiv = document.getElementById('scanner-message');
+    
+    // 비디오 스트림을 가져오는 함수
+    function startScanner() {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(function(stream) {
+          video.srcObject = stream;
+          video.play();
+          scannerMessageDiv.textContent = '카메라가 활성화되었습니다. QR 코드를 화면에 비춰주세요.';
+          requestAnimationFrame(tick);
+        })
+        .catch(function(err) {
+          console.error("카메라 접근 실패: ", err);
+          errorMessageDiv.textContent = `오류: ${err.message}. 카메라 권한을 확인해주세요.`;
+          scannerMessageDiv.textContent = '';
+        });
     }
 
-    document.getElementById('start-scan-button').addEventListener('click', () => {
-        const errorMessageDiv = document.getElementById('error-message');
-        errorMessageDiv.textContent = ''; // Clear previous errors
-
-        html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, onScanSuccess)
-        .catch(err => {
-            // 카메라 초기화 실패 시 에러 메시지를 표시
-            const displayError = `카메라 실행 실패: ${err}`;
-            errorMessageDiv.textContent = displayError;
-            console.error(displayError, err);
-        });
-    });
+    // 비디오에서 QR 코드를 인식하는 함수
+    function tick() {
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        const canvasElement = document.createElement('canvas');
+        const canvas = canvasElement.getContext('2d');
+        canvasElement.height = video.videoHeight;
+        canvasElement.width = video.videoWidth;
+        canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+        
+        const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        
+        if (code) {
+          const qrCodeData = code.data;
+          resultDiv.textContent = `스캔된 데이터: ${qrCodeData}`;
+          
+          // Apps Script로 데이터 전송
+          const appsScriptUrl = 'https://script.google.com/macros/s/AKfycby0PWvWVFOilFMNaX8e0zOKcmpjv0fFqdZakSTTUfdgq9HqAO-KgfQLxxCfMVycM8HLPQ/exec';
+          const url = `${appsScriptUrl}?qrCodeData=${encodeURIComponent(qrCodeData)}`;
+          
+          fetch(url)
+              .then(response => response.text())
+              .then(data => console.log(data))
+              .catch(error => console.error('Apps Script 전송 실패:', error));
+              
+          // 성공 후 스캐너 중지
+          if (video.srcObject) {
+            video.srcObject.getTracks().forEach(track => track.stop());
+          }
+          return;
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+    
+    // 페이지 로드 시 스캐너 시작
+    startScanner();
   </script>
 </body>
 </html>
