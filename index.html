@@ -19,20 +19,8 @@
       height: auto;
       display: block;
     }
-    #result { 
-      margin-top: 20px; 
-      font-weight: bold; 
-      color: #007BFF;
-      font-size: 1.2em;
-    }
-    #scanner-message {
-      color: #666;
-      margin-bottom: 10px;
-    }
-    #error-message {
-      color: red;
-      font-weight: bold;
-      margin-top: 10px;
+    #validation-result-container {
+      margin-top: 20px;
     }
     .validation-status {
       padding: 15px;
@@ -48,6 +36,16 @@
       background-color: #f8e6e6;
       color: #dc3545;
     }
+    #scanner-message {
+      color: #666;
+      margin-bottom: 10px;
+    }
+    #error-message {
+      color: red;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    #output-canvas { display: none; } /* 화면에 보이지 않도록 숨깁니다. */
   </style>
 </head>
 <body>
@@ -58,15 +56,19 @@
     <video id="video" playsinline></video>
   </div>
   
-  <div id="validation-result-container">
-    </div>
+  <div id="validation-result-container"></div>
   <div id="error-message"></div>
+  
+  <canvas id="output-canvas"></canvas>
   
   <script>
     const video = document.getElementById('video');
     const validationResultContainer = document.getElementById('validation-result-container');
     const errorMessageDiv = document.getElementById('error-message');
     const scannerMessageDiv = document.getElementById('scanner-message');
+    const outputCanvas = document.getElementById('output-canvas');
+    const canvasContext = outputCanvas.getContext('2d');
+    
     const videoConstraints = { video: { facingMode: 'environment', width: 1280, height: 720 } };
     let isScanning = false;
 
@@ -94,14 +96,24 @@
     function tick() {
       if (!isScanning) return;
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        const canvasElement = document.createElement('canvas');
-        const canvas = canvasElement.getContext('2d');
-        canvasElement.width = video.videoWidth;
-        canvasElement.height = video.videoHeight;
-        canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+        outputCanvas.width = video.videoWidth;
+        outputCanvas.height = video.videoHeight;
         
-        const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        // 카메라 프레임을 캔버스에 그립니다.
+        canvasContext.drawImage(video, 0, 0, outputCanvas.width, outputCanvas.height);
+        
+        // 캔버스에서 이미지 데이터를 가져와 흑백으로 변환합니다.
+        let imageData = canvasContext.getImageData(0, 0, outputCanvas.width, outputCanvas.height);
+        const grayImageData = new Uint8ClampedArray(imageData.width * imageData.height);
+        for (let i = 0; i < imageData.data.length; i += 4) {
+          const r = imageData.data[i];
+          const g = imageData.data[i + 1];
+          const b = imageData.data[i + 2];
+          // 흑백 변환 공식: (R + G + B) / 3
+          grayImageData[i / 4] = (r + g + b) / 3;
+        }
+
+        const code = jsQR(grayImageData, imageData.width, imageData.height);
         
         if (code) {
           isScanning = false;
