@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Code Scanner</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 20px; background-color: #f4f4f4; }
+    #reader { width: 100%; max-width: 500px; margin: auto; }
+    h2 { color: #333; }
+    #result { margin-top: 20px; font-weight: bold; color: #007BFF; }
+  </style>
+</head>
+<body>
+  <h2>QR 코드 스캔</h2>
+  <p>카메라를 허용하면 자동으로 스캔이 시작됩니다.</p>
+  <div id="reader"></div>
+  <div id="result"></div>
+  
+  <script>
+    function onScanSuccess(decodedText, decodedResult) {
+      document.getElementById('result').textContent = `스캔된 데이터: ${decodedText}`;
+      
+      // 스캔이 완료되면 Apps Script로 데이터를 보냄
+      // TODO: 아래 google.script.run 부분의 URL을 Apps Script 웹 앱 URL로 변경하세요.
+      // 예시: google.script.run.withSuccessHandler(...).validateQrCode(decodedText);
+      
+      // 임시로 알림 창으로 데이터 표시 (Apps Script 연동 전 테스트용)
+      alert(`스캔 완료: ${decodedText}`);
+      
+      // 스캐너 정지 (필요 시)
+      html5QrcodeScanner.clear();
+    }
+    
+    const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } });
+    html5QrcodeScanner.render(onScanSuccess);
+  </script>
+</body>
+</html>
