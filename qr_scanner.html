@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Code Scanner</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 20px; background-color: #f4f4f4; }
+    #reader { width: 100%; max-width: 500px; margin: auto; }
+    h2 { color: #333; }
+    p { color: #666; }
+    #result { margin-top: 20px; font-weight: bold; color: #007BFF; }
+  </style>
+</head>
+<body>
+  <h2>QR 코드 스캔</h2>
+  <div id="reader"></div>
+  <div id="result">QR 코드를 스캔하면 여기에 결과가 표시됩니다.</div>
+  
+  <script>
+    function onScanSuccess(decodedText, decodedResult) {
+      document.getElementById('result').textContent = `스캔된 데이터: ${decodedText}`;
+      
+      // 스캔이 완료되면 Google Apps Script로 데이터를 보냄
+      if (window.opener && window.opener.google && window.opener.google.script) {
+        window.opener.google.script.run
+          .withSuccessHandler(closeScanner)
+          .withFailureHandler(closeScanner)
+          .validateQrCode(decodedText);
+      }
+    }
+    
+    function closeScanner() {
+      window.close();
+    }
+
+    const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } });
+    html5QrcodeScanner.render(onScanSuccess);
+  </script>
+</body>
+</html>
