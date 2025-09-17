@@ -22,20 +22,18 @@
     function onScanSuccess(decodedText, decodedResult) {
       document.getElementById('result').textContent = `스캔된 데이터: ${decodedText}`;
       
-      // 스캔이 완료되면 Apps Script로 데이터를 보냄
       const appsScriptUrl = 'https://script.google.com/macros/s/AKfycby0PWvWVFOilFMNaX8e0zOKcmpjv0fFqdZakSTTUfdgq9HqAO-KgfQLxxCfMVycM8HLPQ/exec'; 
       const url = `${appsScriptUrl}?qrCodeData=${encodeURIComponent(decodedText)}`;
       
       fetch(url)
           .then(response => response.text())
           .then(data => {
-              console.log(data); // Apps Script에서 받은 응답
+              console.log(data);
           })
           .catch(error => {
               console.error('Error sending data to Apps Script:', error);
           });
       
-      // 스캐너 정지 (필요 시)
       html5QrcodeScanner.clear();
     }
     
