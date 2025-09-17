@@ -68,16 +68,23 @@
     const errorMessageDiv = document.getElementById('error-message');
     const scannerMessageDiv = document.getElementById('scanner-message');
     const videoConstraints = { video: { facingMode: 'environment', width: 1280, height: 720 } };
+    let isScanning = false;
 
     function startScanner() {
+      if (isScanning) return;
+      isScanning = true;
+      validationResultContainer.innerHTML = '';
+      errorMessageDiv.textContent = '';
+      scannerMessageDiv.textContent = '카메라가 활성화되었습니다. QR 코드를 화면에 비춰주세요.';
+
       navigator.mediaDevices.getUserMedia(videoConstraints)
         .then(function(stream) {
           video.srcObject = stream;
           video.play();
-          scannerMessageDiv.textContent = '카메라가 활성화되었습니다. QR 코드를 화면에 비춰주세요.';
           requestAnimationFrame(tick);
         })
         .catch(function(err) {
+          isScanning = false;
           console.error("카메라 접근 실패: ", err);
           errorMessageDiv.textContent = `오류: ${err.message}. 카메라 권한을 확인해주세요.`;
           scannerMessageDiv.textContent = '';
@@ -85,6 +92,7 @@
     }
 
     function tick() {
+      if (!isScanning) return;
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
         const canvasElement = document.createElement('canvas');
         const canvas = canvasElement.getContext('2d');
@@ -96,15 +104,14 @@
         const code = jsQR(imageData.data, imageData.width, imageData.height);
         
         if (code) {
+          isScanning = false;
           const qrCodeData = code.data;
-          validationResultContainer.innerHTML = ''; // 이전 결과 지우기
           
-          // Apps Script로 데이터 전송 및 응답 처리
           const appsScriptUrl = 'https://script.google.com/macros/s/AKfycby0PWvWVFOilFMNaX8e0zOKcmpjv0fFqdZakSTTUfdgq9HqAO-KgfQLxxCfMVycM8HLPQ/exec';
           const url = `${appsScriptUrl}?qrCodeData=${encodeURIComponent(qrCodeData)}`;
           
           fetch(url)
-              .then(response => response.json()) // 응답을 JSON으로 파싱
+              .then(response => response.json())
               .then(data => {
                   displayValidationResult(data);
               })
@@ -122,7 +129,6 @@
       requestAnimationFrame(tick);
     }
     
-    // 검증 결과를 화면에 표시하는 함수
     function displayValidationResult(data) {
       const resultDiv = document.createElement('div');
       if (data.status === 'success') {
