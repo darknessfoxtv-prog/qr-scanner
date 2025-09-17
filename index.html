@@ -21,6 +21,11 @@
       background-color: #007BFF;
       color: white;
     }
+    #error-message {
+      color: red;
+      font-weight: bold;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -32,8 +37,11 @@
   <div class="scanner-controls">
     <button id="start-scan-button">스캔 시작</button>
   </div>
+  <div id="error-message"></div>
   
   <script>
+    const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } });
+
     function onScanSuccess(decodedText, decodedResult) {
       document.getElementById('result').textContent = `스캔된 데이터: ${decodedText}`;
       
@@ -46,7 +54,7 @@
               console.log(data);
           })
           .catch(error => {
-              console.error('Error sending data to Apps Script:', error);
+              console.error('Apps Script로 데이터 전송 실패:', error);
           });
       
       html5QrcodeScanner.stop().then(ignore => {
@@ -55,13 +63,18 @@
           console.log("QR 스캐너 중지 실패: " + err);
       });
     }
-    
-    // 이 부분에서 카메라를 자동으로 시작하지 않습니다.
-    const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } });
-    
-    // '스캔 시작' 버튼을 눌렀을 때만 카메라를 실행합니다.
+
     document.getElementById('start-scan-button').addEventListener('click', () => {
-      html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, onScanSuccess);
+        const errorMessageDiv = document.getElementById('error-message');
+        errorMessageDiv.textContent = ''; // Clear previous errors
+
+        html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, onScanSuccess)
+        .catch(err => {
+            // 카메라 초기화 실패 시 에러 메시지를 표시
+            const displayError = `카메라 실행 실패: ${err}`;
+            errorMessageDiv.textContent = displayError;
+            console.error(displayError, err);
+        });
     });
   </script>
 </body>
